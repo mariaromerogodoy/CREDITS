@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Image Archive</title>
+
+    <style>
+      /* ------------------------------
+       BASIC PAGE
+    ------------------------------ */
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      body {
+        font-family: Arial, Helvetica, sans-serif;
+
+        background-image: url("backdrop.png");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+
+        overflow: auto;
+      }
+
+      /* ------------------------------
+       DESKTOP
+    ------------------------------ */
+
+      #desktop {
+        position: relative;
+
+        width: max(100vw, 1100px);
+        height: max(100vh, 760px);
+
+        overflow: hidden;
+      }
+
+      /* optional slight layer over background */
+
+      #desktop::before {
+        content: "";
+
+        position: absolute;
+        inset: 0;
+
+        background: rgba(255, 255, 255, 0.03);
+
+        pointer-events: none;
+      }
+
+      /* ------------------------------
+       EACH IMAGE
+    ------------------------------ */
+
+      .archive-item {
+        position: absolute;
+
+        width: clamp(35px, 3.4vw, 58px);
+
+        cursor: pointer;
+
+        user-select: none;
+
+        transform-origin: center;
+
+        transition: transform 0.15s ease, filter 0.15s ease;
+
+        z-index: 2;
+      }
+
+      .archive-item:hover {
+        transform: scale(1.15);
+        z-index: 20;
+      }
+
+      .archive-image {
+        display: block;
+
+        width: 100%;
+        max-height: 65px;
+
+        object-fit: cover;
+
+        border: 1px solid rgba(255, 255, 255, 0.8);
+
+        background: #ddd;
+
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.25), 0 3px 7px rgba(0, 0, 0, 0.16);
+      }
+
+      /* little file name underneath */
+
+      .archive-label {
+        margin-top: 3px;
+
+        width: 100%;
+
+        font-family: "Courier New", monospace;
+        font-size: 7px;
+        line-height: 1.05;
+
+        text-align: center;
+
+        color: white;
+
+        text-shadow: 0 1px 2px black, 0 0 3px black;
+
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      /* ------------------------------
+       MODAL / PREVIEW BACKGROUND
+    ------------------------------ */
+
+      #preview-overlay {
+        position: fixed;
+
+        inset: 0;
+
+        z-index: 1000;
+
+        display: none;
+
+        justify-content: center;
+        align-items: center;
+
+        padding: 40px;
+
+        background: rgba(255, 255, 255, 0.1);
+
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+
+      #preview-overlay.active {
+        display: flex;
+      }
+
+      /* ------------------------------
+       MAC STYLE WINDOW
+    ------------------------------ */
+
+      #preview-window {
+        width: min(850px, 88vw);
+        max-height: 88vh;
+
+        display: flex;
+        flex-direction: column;
+
+        background: #e6e6e6;
+
+        border: 1px solid rgba(60, 60, 60, 0.55);
+
+        border-radius: 9px;
+
+        overflow: hidden;
+
+        box-shadow: 0 22px 55px rgba(0, 0, 0, 0.45),
+          0 3px 7px rgba(0, 0, 0, 0.3);
+      }
+
+      /* ------------------------------
+       TOP WINDOW BAR
+    ------------------------------ */
+
+      .window-bar {
+        height: 38px;
+
+        flex-shrink: 0;
+
+        display: grid;
+
+        grid-template-columns: 1fr auto 1fr;
+
+        align-items: center;
+
+        padding: 0 12px;
+
+        background: linear-gradient(
+          to bottom,
+          #f6f6f6 0%,
+          #dedede 50%,
+          #c8c8c8 100%
+        );
+
+        border-bottom: 1px solid #999;
+
+        color: #333;
+
+        font-size: 11px;
+      }
+
+      .window-buttons {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .window-dot {
+        width: 12px;
+        height: 12px;
+
+        border-radius: 50%;
+
+        border: 1px solid rgba(0, 0, 0, 0.25);
+
+        cursor: pointer;
+      }
+
+      .red {
+        background: #ff605c;
+      }
+
+      .yellow {
+        background: #ffbd44;
+      }
+
+      .green {
+        background: #00ca4e;
+      }
+
+      #window-title {
+        font-size: 11px;
+        font-weight: normal;
+
+        text-align: center;
+      }
+
+      .image-count {
+        justify-self: end;
+
+        font-family: "Courier New", monospace;
+        font-size: 10px;
+
+        opacity: 0.7;
+      }
+
+      /* ------------------------------
+       PREVIEW IMAGE
+    ------------------------------ */
+
+      .preview-image-area {
+        position: relative;
+
+        min-height: 300px;
+
+        flex: 1;
+
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        background: rgba(245, 245, 245, 0.96);
+
+        overflow: hidden;
+      }
+
+      #preview-image {
+        display: block;
+
+        max-width: 100%;
+        max-height: 66vh;
+
+        width: auto;
+        height: auto;
+
+        object-fit: contain;
+      }
+
+      /* ------------------------------
+       ARROWS
+    ------------------------------ */
+
+      .navigation-button {
+        position: absolute;
+
+        top: 50%;
+
+        width: 42px;
+        height: 50px;
+
+        border: none;
+
+        background: rgba(255, 255, 255, 0.73);
+
+        transform: translateY(-50%);
+
+        cursor: pointer;
+
+        font-size: 24px;
+
+        color: #222;
+
+        opacity: 0;
+
+        transition: opacity 0.15s ease, background 0.15s ease;
+      }
+
+      .preview-image-area:hover .navigation-button {
+        opacity: 1;
+      }
+
+      .navigation-button:hover {
+        background: white;
+      }
+
+      #previous {
+        left: 12px;
+      }
+
+      #next {
+        right: 12px;
+      }
+
+      /* ------------------------------
+       CREDIT AREA
+    ------------------------------ */
+
+      .preview-information {
+        flex-shrink: 0;
+
+        padding: 13px 17px 15px;
+
+        background: rgba(239, 239, 239, 0.98);
+
+        border-top: 1px solid #b7b7b7;
+
+        display: grid;
+
+        grid-template-columns: 1fr auto;
+
+        gap: 10px 25px;
+
+        align-items: end;
+      }
+
+      #credit-title {
+        margin: 0 0 4px;
+
+        font-size: 12px;
+        font-weight: 600;
+
+        color: #161616;
+      }
+
+      #credit-text {
+        margin: 0;
+
+        font-size: 10px;
+        line-height: 1.4;
+
+        color: #555;
+      }
+
+      #source-link {
+        font-size: 10px;
+
+        color: #111;
+
+        text-decoration: none;
+
+        border-bottom: 1px solid #111;
+
+        padding-bottom: 1px;
+      }
+
+      #source-link:hover {
+        opacity: 0.55;
+      }
+
+      /* ------------------------------
+       MOBILE
+    ------------------------------ */
+
+      @media (max-width: 700px) {
+        #desktop {
+          width: 1100px;
+          height: 760px;
+        }
+
+        .archive-item {
+          width: 42px;
+        }
+
+        #preview-overlay {
+          padding: 12px;
+        }
+
+        #preview-window {
+          width: 96vw;
+        }
+
+        .preview-information {
+          grid-template-columns: 1fr;
+        }
+
+        #source-link {
+          justify-self: start;
+        }
+
+        .navigation-button {
+          opacity: 1;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ==============================
+       DESKTOP / ALL 256 IMAGES
+  =============================== -->
+
+    <main id="desktop"></main>
+
+    <!-- ==============================
+       LARGE PREVIEW
+  =============================== -->
+
+    <div id="preview-overlay">
+      <section id="preview-window">
+        <header class="window-bar">
+          <div class="window-buttons">
+            <button
+              class="window-dot red"
+              id="close-button"
+              aria-label="Close preview"
+            ></button>
+
+            <span class="window-dot yellow"></span>
+
+            <span class="window-dot green"></span>
+          </div>
+
+          <div id="window-title">Preview</div>
+
+          <div class="image-count" id="image-count">001 / 256</div>
+        </header>
+
+        <div class="preview-image-area">
+          <button
+            class="navigation-button"
+            id="previous"
+            aria-label="Previous image"
+          >
+            ‹
+          </button>
+
+          <img id="preview-image" src="" alt="" />
+
+          <button class="navigation-button" id="next" aria-label="Next image">
+            ›
+          </button>
+        </div>
+
+        <footer class="preview-information">
+          <div>
+            <p id="credit-title">Image title</p>
+
+            <p id="credit-text">Credit information</p>
+          </div>
+
+          <a
+            id="source-link"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            SOURCE ↗
+          </a>
+        </footer>
+      </section>
+    </div>
+
+    <script>
+      /* ========================================================
+       YOUR IMAGE INFORMATION
+       ========================================================
+
+       Your images should be inside:
+
+       images/001.jpg
+       images/002.jpg
+       images/003.jpg
+
+       ...
+
+       images/256.jpg
+
+
+       The website automatically creates ALL 256 images.
+
+       You only need to add credits below when you want them.
+
+    ======================================================== */
+
+      const credits = {
+        /* --------------------------------
+         IMAGE 001
+      -------------------------------- */
+
+        1: {
+          title: "Image 001",
+          credit: "Artist / photographer / designer / year",
+          source: "Original Source",
+          link: "https://example.com",
+        },
+
+        /* --------------------------------
+         IMAGE 002
+      -------------------------------- */
+
+        2: {
+          title: "Image 002",
+          credit: "Add the credit here",
+          source: "Website Name",
+          link: "https://example.com",
+        },
+
+        /* --------------------------------
+         IMAGE 003
+      -------------------------------- */
+
+        3: {
+          title: "Image 003",
+          credit: "Add the credit here",
+          source: "Website Name",
+          link: "https://example.com",
+        },
+
+        /*
+
+        KEEP ADDING THEM LIKE THIS:
+
+        4: {
+          title: "Image 004",
+          credit: "Photographer Name, 1998",
+          source: "Internet Archive",
+          link: "https://archive.org/..."
+        },
+
+        5: {
+          title: "Image 005",
+          credit: "Apple iMac Advertisement, 1999",
+          source: "Are.na",
+          link: "https://www.are.na/..."
+        },
+
+        ...
+
+        256: {
+          title: "Image 256",
+          credit: "Your credit",
+          source: "Your source",
+          link: "https://..."
+        }
+
+      */
+      };
+
+      /* ========================================================
+       CREATE ALL 256 IMAGE OBJECTS
+    ======================================================== */
+
+      const images = Array.from({ length: 256 }, (_, index) => {
+        const number = index + 1;
+
+        const padded = String(number).padStart(3, "0");
+
+        const customCredit = credits[number] || {};
+
+        return {
+          number: number,
+
+          filename: padded + ".jpg",
+
+          src: "images/" + padded + ".jpg",
+
+          title: customCredit.title || "Image " + padded,
+
+          credit: customCredit.credit || "",
+
+          source: customCredit.source || "",
+
+          link: customCredit.link || "",
+        };
+      });
+
+      /* ========================================================
+       DOM REFERENCES
+    ======================================================== */
+
+      const desktop = document.getElementById("desktop");
+
+      const overlay = document.getElementById("preview-overlay");
+
+      const previewImage = document.getElementById("preview-image");
+
+      const creditTitle = document.getElementById("credit-title");
+
+      const creditText = document.getElementById("credit-text");
+
+      const sourceLink = document.getElementById("source-link");
+
+      const imageCount = document.getElementById("image-count");
+
+      const windowTitle = document.getElementById("window-title");
+
+      const previousButton = document.getElementById("previous");
+
+      const nextButton = document.getElementById("next");
+
+      const closeButton = document.getElementById("close-button");
+
+      let currentIndex = 0;
+
+      /* ========================================================
+       SEEDED RANDOM NUMBER
+
+       This means your image positions DON'T change
+       every time somebody refreshes the page.
+    ======================================================== */
+
+      function randomFromSeed(seed) {
+        const x = Math.sin(seed * 9999) * 10000;
+
+        return x - Math.floor(x);
+      }
+
+      /* ========================================================
+       PLACE ALL 256 IMAGES
+
+       16 columns × 16 rows = 256 images.
+
+       Each image gets slight randomness,
+       creating the scattered desktop feeling.
+    ======================================================== */
+
+      const columns = 16;
+      const rows = 16;
+
+      images.forEach((image, index) => {
+        const column = index % columns;
+
+        const row = Math.floor(index / columns);
+
+        const horizontalBase = ((column + 0.5) / columns) * 100;
+
+        const verticalBase = ((row + 0.5) / rows) * 100;
+
+        const randomX = (randomFromSeed(index + 10) - 0.5) * 3.5;
+
+        const randomY = (randomFromSeed(index + 800) - 0.5) * 3;
+
+        const rotation = (randomFromSeed(index + 2000) - 0.5) * 9;
+
+        /* Create item */
+
+        const item = document.createElement("div");
+
+        item.className = "archive-item";
+
+        item.style.left = horizontalBase + randomX + "%";
+
+        item.style.top = verticalBase + randomY + "%";
+
+        item.style.transform = `
+          translate(-50%, -50%)
+          rotate(${rotation}deg)
+          `;
+
+        /* Create thumbnail */
+
+        const img = document.createElement("img");
+
+        img.className = "archive-image";
+
+        img.src = image.src;
+
+        img.alt = image.title;
+
+        img.loading = "lazy";
+
+        /* File name */
+
+        const label = document.createElement("div");
+
+        label.className = "archive-label";
+
+        label.textContent = image.filename;
+
+        /* Click */
+
+        item.addEventListener("click", () => {
+          openPreview(index);
+        });
+
+        item.appendChild(img);
+
+        item.appendChild(label);
+
+        desktop.appendChild(item);
+      });
+
+      /* ========================================================
+       OPEN IMAGE
+    ======================================================== */
+
+      function openPreview(index) {
+        currentIndex = index;
+
+        const image = images[currentIndex];
+
+        previewImage.src = image.src;
+
+        previewImage.alt = image.title;
+
+        creditTitle.textContent = image.title;
+
+        imageCount.textContent =
+          String(image.number).padStart(3, "0") + " / 256";
+
+        windowTitle.textContent = image.filename;
+
+        /* CREDIT */
+
+        if (image.credit) {
+          creditText.textContent = image.credit;
+
+          creditText.style.display = "block";
+        } else {
+          creditText.textContent = "";
+
+          creditText.style.display = "none";
+        }
+
+        /* SOURCE LINK */
+
+        if (image.link) {
+          sourceLink.href = image.link;
+
+          sourceLink.textContent = (image.source || "SOURCE") + " ↗";
+
+          sourceLink.style.display = "inline-block";
+        } else {
+          sourceLink.style.display = "none";
+        }
+
+        overlay.classList.add("active");
+      }
+
+      /* ========================================================
+       CLOSE
+    ======================================================== */
+
+      function closePreview() {
+        overlay.classList.remove("active");
+      }
+
+      closeButton.addEventListener("click", closePreview);
+
+      overlay.addEventListener("click", (event) => {
+        if (event.target === overlay) {
+          closePreview();
+        }
+      });
+
+      /* ========================================================
+       PREVIOUS
+    ======================================================== */
+
+      function previousImage() {
+        currentIndex--;
+
+        if (currentIndex < 0) {
+          currentIndex = images.length - 1;
+        }
+
+        openPreview(currentIndex);
+      }
+
+      previousButton.addEventListener("click", previousImage);
+
+      /* ========================================================
+       NEXT
+    ======================================================== */
+
+      function nextImage() {
+        currentIndex++;
+
+        if (currentIndex >= images.length) {
+          currentIndex = 0;
+        }
+
+        openPreview(currentIndex);
+      }
+
+      nextButton.addEventListener("click", nextImage);
+
+      /* ========================================================
+       KEYBOARD CONTROLS
+    ======================================================== */
+
+      document.addEventListener("keydown", (event) => {
+        if (!overlay.classList.contains("active")) {
+          return;
+        }
+
+        if (event.key === "Escape") {
+          closePreview();
+        }
+
+        if (event.key === "ArrowLeft") {
+          previousImage();
+        }
+
+        if (event.key === "ArrowRight") {
+          nextImage();
+        }
+      });
+    </script>
+  </body>
+</html>
